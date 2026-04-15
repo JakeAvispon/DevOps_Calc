@@ -2,37 +2,92 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Calculadora Oceánica</title>
+    <title>Calculadora Pirata & Oceánica</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Estilos adicionales para los botones rápidos */
+        .quick-btn {
+            background: rgba(0, 210, 255, 0.1);
+            color: white;
+            border: 1px solid #00d2ff;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .quick-btn:hover, .quick-btn.selected {
+            background: #00d2ff;
+            color: #001f3f;
+            box-shadow: 0 0 10px #00d2ff;
+        }
+        .input-group {
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+        }
+    </style>
 </head>
 <body>
     <canvas id="ocean-canvas"></canvas>
 
     <div class="container">
         <img src="{{ url_for('static', filename='tecmi.png') }}" class="logo-tecmilenio" alt="TecMilenio">
-        <h2>SISTEMA BINARIO</h2>
+        <h2>SISTEMA DE CÁLCULO</h2>
 
-        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-            <button onclick="changeMode('simple')" id="btn-simple" class="mode-btn active">CONVERSOR</button>
-            <button onclick="changeMode('operation')" id="btn-op" class="mode-btn">OPERACIÓN</button>
+        <div style="display: flex; justify-content: center; gap: 5px; margin-bottom: 10px;">
+            <button onclick="changeMode('simple')" id="btn-simple" class="mode-btn">CONVERSOR</button>
+            <button onclick="changeMode('operation')" id="btn-op" class="mode-btn">ARITMÉTICA</button>
+            <button onclick="changeMode('logical')" id="btn-log" class="mode-btn">LÓGICA</button>
         </div>
+
+        <p id="helper-text" style="font-size: 0.85em; color: #00d2ff; margin-bottom: 20px; font-style: italic;">
+            Convierte un número decimal a su equivalente binario puro.
+        </p>
 
         <form method="POST">
             <input type="hidden" name="calc_mode" id="calc_mode" value="simple">
             
-            <input type="number" name="n1" placeholder="Ingresa un Valor (Decimal)" required>
-            
-            <div id="op-ui" class="hidden">
-                <input type="number" name="n2" id="input-n2" placeholder="Segundo Valor (Decimal)">
-                <div class="grid-ops">
-                    <button name="op" value="sum" title="Sumar">+</button>
-                    <button name="op" value="sub" title="Restar">-</button>
-                    <button name="op" value="mul" title="Multiplicar">*</button>
-                    <button name="op" value="div" title="Dividir">/</button>
-                </div>
+            <div id="text-inputs">
+                <input type="number" name="n1" id="input-n1-text" placeholder="Ingresa el Valor A (Decimal)" required>
+                <input type="number" name="n2" id="input-n2-text" placeholder="Ingresa el Valor B (Decimal)" class="hidden">
             </div>
 
-            <button type="submit" id="submit-simple" class="mode-btn" style="width: 90%; padding: 15px; margin-top: 10px;">CONVERTIR A BINARIO</button>
+            <div id="logical-inputs" class="hidden">
+                <div class="input-group">
+                    <span style="color: #00d2ff; font-weight: bold;">BIT A:</span>
+                    <button type="button" class="quick-btn" onclick="setBit('n1', -1)">-1</button>
+                    <button type="button" class="quick-btn" onclick="setBit('n1', 0)">0</button>
+                    <button type="button" class="quick-btn" onclick="setBit('n1', 1)">1</button>
+                    <input type="hidden" name="n1_log" id="hidden-n1" value="0">
+                </div>
+                
+                <div class="input-group" id="group-b">
+                    <span style="color: #00d2ff; font-weight: bold;">BIT B:</span>
+                    <button type="button" class="quick-btn" onclick="setBit('n2', -1)">-1</button>
+                    <button type="button" class="quick-btn" onclick="setBit('n2', 0)">0</button>
+                    <button type="button" class="quick-btn" onclick="setBit('n2', 1)">1</button>
+                    <input type="hidden" name="n2_log" id="hidden-n2" value="0">
+                </div>
+            </div>
+            
+            <div id="op-ui" class="grid-ops hidden">
+                <button name="op" value="sum" title="Sumar">+</button>
+                <button name="op" value="sub" title="Restar">-</button>
+                <button name="op" value="mul" title="Multiplicar">*</button>
+                <button name="op" value="div" title="Dividir">/</button>
+            </div>
+
+            <div id="log-ui" class="grid-ops hidden">
+                <button name="op" value="and">AND</button>
+                <button name="op" value="or">OR</button>
+                <button name="op" value="xor">XOR</button>
+                <button name="op" value="not" title="Invierte los bits del Valor A" onclick="document.getElementById('hidden-n2').value=0">NOT</button>
+            </div>
+
+            <button type="submit" id="submit-simple" class="mode-btn" style="width: 90%; padding: 15px; margin-top: 10px;">EJECUTAR CÁLCULO</button>
         </form>
 
         {% if result %}
@@ -45,36 +100,103 @@
                 <span>▶ VALOR B (BIN):</span> <span style="color:white;">{{ result.bin2 }}</span><br><br>
                 <span>▶ RESULTADO (BIN):</span> <strong style="color:#00ff88;">{{ result.bin_res }}</strong><br>
                 <span>▶ RESULTADO (DEC):</span> <strong style="color:white;">{{ result.dec_res }}</strong>
+            {% elif result.type == 'logical' %}
+                <span>▶ OPERACIÓN LÓGICA: <strong style="color:#00d2ff;">{{ result.op_name }}</strong></span><br>
+                <span>▶ VALOR A (BIN):</span> <span style="color:white;">{{ result.bin1 }}</span><br>
+                <span>▶ VALOR B (BIN):</span> <span style="color:white;">{{ result.bin2 }}</span><br><br>
+                <span>▶ RESULTADO (BIN):</span> <strong style="color:#00ff88;">{{ result.bin_res }}</strong><br>
+                <span>▶ RESULTADO (DEC):</span> <strong style="color:white;">{{ result.dec_res }}</strong>
             {% endif %}
         </div>
         {% endif %}
     </div>
 
     <script>
-        // Lógica para alternar entre Conversor y Operación
+        // Función para los botones rápidos de lógica
+        function setBit(target, value) {
+            // Actualizar el valor oculto
+            if(target === 'n1') {
+                document.getElementById('hidden-n1').value = value;
+                // Sincronizar con el input normal para que Python no falle
+                document.getElementById('input-n1-text').value = value;
+            } else {
+                document.getElementById('hidden-n2').value = value;
+                document.getElementById('input-n2-text').value = value;
+            }
+            
+            // Efecto visual de selección (opcional pero se ve genial)
+            let buttons = event.target.parentElement.getElementsByTagName('button');
+            for(let btn of buttons) { btn.classList.remove('selected'); }
+            event.target.classList.add('selected');
+        }
+
         function changeMode(mode) {
             document.getElementById('calc_mode').value = mode;
             const opUI = document.getElementById('op-ui');
+            const logUI = document.getElementById('log-ui');
             const subSimple = document.getElementById('submit-simple');
-            const inputN2 = document.getElementById('input-n2');
+            const inputN1Text = document.getElementById('input-n1-text');
+            const inputN2Text = document.getElementById('input-n2-text');
+            const textInputs = document.getElementById('text-inputs');
+            const logicalInputs = document.getElementById('logical-inputs');
+            const helperText = document.getElementById('helper-text');
             
+            document.getElementById('btn-simple').classList.remove('active');
+            document.getElementById('btn-op').classList.remove('active');
+            document.getElementById('btn-log').classList.remove('active');
+
             if(mode === 'simple') {
-                opUI.classList.add('hidden');
-                subSimple.classList.remove('hidden');
                 document.getElementById('btn-simple').classList.add('active');
-                document.getElementById('btn-op').classList.remove('active');
-                inputN2.removeAttribute('required'); // No es obligatorio en conversor
-            } else {
-                opUI.classList.remove('hidden');
-                subSimple.classList.add('hidden');
+                opUI.classList.add('hidden');
+                logUI.classList.add('hidden');
+                subSimple.classList.remove('hidden');
+                
+                textInputs.classList.remove('hidden');
+                logicalInputs.classList.add('hidden');
+                
+                inputN2Text.classList.add('hidden');
+                inputN2Text.removeAttribute('required');
+                helperText.innerText = "Convierte un número decimal a su equivalente binario puro.";
+            } else if(mode === 'operation') {
                 document.getElementById('btn-op').classList.add('active');
-                document.getElementById('btn-simple').classList.remove('active');
-                inputN2.setAttribute('required', 'true'); // Sí es obligatorio en operación
+                opUI.classList.remove('hidden');
+                logUI.classList.add('hidden');
+                subSimple.classList.add('hidden');
+                
+                textInputs.classList.remove('hidden');
+                logicalInputs.classList.add('hidden');
+
+                inputN2Text.classList.remove('hidden');
+                inputN2Text.setAttribute('required', 'true');
+                helperText.innerText = "Realiza operaciones matemáticas clásicas y muestra el proceso en binario.";
+            } else if(mode === 'logical') {
+                document.getElementById('btn-log').classList.add('active');
+                opUI.classList.add('hidden');
+                logUI.classList.remove('hidden');
+                subSimple.classList.add('hidden');
+                
+                // Ocultar textos, mostrar botones
+                textInputs.classList.add('hidden');
+                logicalInputs.classList.remove('hidden');
+                
+                inputN1Text.removeAttribute('required');
+                inputN2Text.removeAttribute('required');
+                
+                // Asegurarnos de que los valores iniciales ocultos sean 0
+                if(!document.getElementById('hidden-n1').value) document.getElementById('input-n1-text').value = 0;
+                if(!document.getElementById('hidden-n2').value) document.getElementById('input-n2-text').value = 0;
+
+                helperText.innerText = "Compara bits directamente usando compuertas lógicas (0 y 1).";
             }
         }
 
+        window.onload = function() {
+            let activeMode = "{{ current_mode | default('simple') }}";
+            changeMode(activeMode);
+        };
+
         // ==========================================
-        // SIMULACIÓN DEL OCÉANO (TORTUGAS + BURBUJAS)
+        // MOTOR GRÁFICO (PECES, TORTUGAS, BARCOS, BURBUJAS)
         // ==========================================
         const canvas = document.getElementById('ocean-canvas');
         const ctx = canvas.getContext('2d');
@@ -86,107 +208,99 @@
         window.addEventListener('mouseout', () => { mouse.x = -1000; mouse.y = -1000; });
         window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
 
-        // 1. CLASE BURBUJAS
         class Bubble {
             constructor() {
-                this.x = Math.random() * width;
-                this.y = height + Math.random() * 500; // Empiezan abajo de la pantalla
-                this.size = Math.random() * 4 + 1;
-                this.speed = Math.random() * 2 + 0.5;
-                this.wobble = Math.random() * Math.PI * 2; // Para que suban en zig-zag
+                this.x = Math.random() * width; this.y = height + Math.random() * 500;
+                this.size = Math.random() * 3 + 1; this.speed = Math.random() * 2 + 0.5; this.wobble = Math.random() * Math.PI * 2;
             }
             update() {
-                this.y -= this.speed;
-                this.wobble += 0.05;
-                this.x += Math.sin(this.wobble) * 1;
-
-                if (this.y < -20) { // Si salen por arriba, reinician abajo
-                    this.y = height + 20;
-                    this.x = Math.random() * width;
-                }
+                this.y -= this.speed; this.wobble += 0.05; this.x += Math.sin(this.wobble) * 1;
+                if (this.y < -20) { this.y = height + 20; this.x = Math.random() * width; }
             }
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; ctx.stroke();
+                ctx.fillStyle = "rgba(255, 255, 255, 0.1)"; ctx.fill();
             }
         }
 
-        // 2. CLASE TORTUGAS
         class Turtle {
             constructor() {
+                this.x = Math.random() * width; this.y = 200 + Math.random() * (height - 200);
+                this.vx = (Math.random() - 0.5) * 1.5; this.vy = (Math.random() - 0.5) * 1.5; this.size = 12 + Math.random() * 8;
+            }
+            draw() {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(Math.atan2(this.vy, this.vx));
+                ctx.fillStyle = '#1e5b3c'; ctx.beginPath(); ctx.ellipse(this.size*0.4, this.size*0.8, this.size*0.6, this.size*0.3, Math.PI/4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(this.size*0.4, -this.size*0.8, this.size*0.6, this.size*0.3, -Math.PI/4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(-this.size*0.5, this.size*0.6, this.size*0.4, this.size*0.2, -Math.PI/6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(-this.size*0.5, -this.size*0.6, this.size*0.4, this.size*0.2, Math.PI/6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(this.size * 0.9, 0, this.size * 0.4, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#2e8b57'; ctx.beginPath(); ctx.ellipse(0, 0, this.size, this.size * 0.8, 0, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#154029'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+            }
+            update() {
+                let dx = mouse.x - this.x; let dy = mouse.y - this.y; let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < 150) { let force = (150 - distance) / 150; this.vx -= (dx / distance) * force * 0.8; this.vy -= (dy / distance) * force * 0.8; }
+                let speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+                if (speed > 3) { this.vx = (this.vx / speed) * 3; this.vy = (this.vy / speed) * 3; } else if (speed < 0.5) { this.vx *= 1.05; this.vy *= 1.05; }
+                this.vx += (Math.random() - 0.5) * 0.1; this.vy += (Math.random() - 0.5) * 0.1;
+                this.x += this.vx; this.y += this.vy;
+                if (this.x < -50) this.x = width + 50; if (this.x > width + 50) this.x = -50;
+                if (this.y < 150) this.y = 150; if (this.y > height + 50) this.y = -50;
+            }
+        }
+
+        class Fish {
+            constructor() {
                 this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * 1.5;
-                this.vy = (Math.random() - 0.5) * 1.5;
-                this.size = 15 + Math.random() * 10;
+                this.y = 150 + Math.random() * (height - 150);
+                this.vx = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2);
+                this.vy = (Math.random() - 0.5) * 0.8;
+                this.size = 5 + Math.random() * 4;
+                this.color = ['#ff7e67', '#00d2ff', '#ffd700', '#ff6b81'][Math.floor(Math.random()*4)];
+                this.wiggle = Math.random() * Math.PI * 2;
             }
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(Math.atan2(this.vy, this.vx));
+                
+                this.wiggle += 0.3; 
+                let tailOffset = Math.sin(this.wiggle) * this.size * 0.6;
 
-                const colorShell = '#2e8b57';
-                const colorSkin = '#1e5b3c';
-
-                ctx.fillStyle = colorSkin;
-                ctx.beginPath(); ctx.ellipse(this.size*0.4, this.size*0.8, this.size*0.6, this.size*0.3, Math.PI/4, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(this.size*0.4, -this.size*0.8, this.size*0.6, this.size*0.3, -Math.PI/4, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(-this.size*0.5, this.size*0.6, this.size*0.4, this.size*0.2, -Math.PI/6, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(-this.size*0.5, -this.size*0.6, this.size*0.4, this.size*0.2, Math.PI/6, 0, Math.PI*2); ctx.fill();
-
-                ctx.beginPath(); ctx.arc(this.size * 0.9, 0, this.size * 0.4, 0, Math.PI*2); ctx.fill();
-
-                ctx.fillStyle = colorShell;
-                ctx.beginPath(); ctx.ellipse(0, 0, this.size, this.size * 0.8, 0, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#154029'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.ellipse(0, 0, this.size * 1.5, this.size * 0.8, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-this.size, 0); ctx.lineTo(-this.size * 2.5, this.size * 0.8 + tailOffset); ctx.lineTo(-this.size * 2.5, -this.size * 0.8 + tailOffset); ctx.fill();
+                ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(this.size * 0.8, -this.size * 0.2, this.size * 0.2, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(this.size * 0.9, -this.size * 0.2, this.size * 0.1, 0, Math.PI*2); ctx.fill();
                 ctx.restore();
             }
             update() {
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let distance = Math.sqrt(dx*dx + dy*dy);
-                let repulsion = 150;
-
-                if (distance < repulsion) {
-                    let force = (repulsion - distance) / repulsion;
-                    this.vx -= (dx / distance) * force * 0.8;
-                    this.vy -= (dy / distance) * force * 0.8;
+                let dx = mouse.x - this.x; let dy = mouse.y - this.y; let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < 100) {
+                    let force = (100 - distance) / 100;
+                    this.vx -= (dx / distance) * force * 1.5;
+                    this.vy -= (dy / distance) * force * 1.5;
                 }
-
+                
                 let speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
-                if (speed > 3) { this.vx = (this.vx / speed) * 3; this.vy = (this.vy / speed) * 3; }
-                else if (speed < 0.5) { this.vx *= 1.05; this.vy *= 1.05; }
-
-                this.vx += (Math.random() - 0.5) * 0.1;
-                this.vy += (Math.random() - 0.5) * 0.1;
-
+                if (speed > 5) { this.vx = (this.vx / speed) * 5; this.vy = (this.vy / speed) * 5; } else if (speed < 1) { this.vx *= 1.05; this.vy *= 1.05; }
+                
                 this.x += this.vx; this.y += this.vy;
-
-                if (this.x < -50) this.x = width + 50;
-                if (this.x > width + 50) this.x = -50;
-                if (this.y < -50) this.y = height + 50;
-                if (this.y > height + 50) this.y = -50;
+                
+                if (this.x < -50) this.x = width + 50; if (this.x > width + 50) this.x = -50;
+                if (this.y < 150) this.y = 150; if (this.y > height + 50) this.y = -50;
             }
         }
-
-        // Crear arrays de elementos
-        const turtles = [];
-        const bubbles = [];
-        for (let i = 0; i < 7; i++) turtles.push(new Turtle());
+        
+        const bubbles = []; const turtles = []; const fishes = [];
         for (let i = 0; i < 40; i++) bubbles.push(new Bubble());
+        for (let i = 0; i < 5; i++) turtles.push(new Turtle());
+        for (let i = 0; i < 15; i++) fishes.push(new Fish()); 
 
-        // Animar todo
         function animate() {
             ctx.clearRect(0, 0, width, height);
-            
-            bubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
-            turtles.forEach(turtle => { turtle.update(); turtle.draw(); });
-
+            ships.forEach(s => { s.update(); s.draw(); });
+            bubbles.forEach(b => { b.update(); b.draw(); });
+            fishes.forEach(f => { f.update(); f.draw(); });
+            turtles.forEach(t => { t.update(); t.draw(); });
             requestAnimationFrame(animate);
         }
         animate();
