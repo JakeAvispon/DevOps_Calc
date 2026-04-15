@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo Instalando dependencias...
+      - pip install flask
+  pre_build:
+    commands:
+      - echo Verificando archivos...
+      - chmod +x deploy.sh
+  build:
+    commands:
+      - echo Iniciando la construcción y pruebas...
+      - python -m py_compile calc.py
+  post_build:
+    commands:
+      - echo ¡Construcción exitosa! Ejecutando respaldo en S3...
+      - ./deploy.sh
+
+artifacts:
+  files:
+    - '**/*'
