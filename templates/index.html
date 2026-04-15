@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora Oceánica</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <canvas id="ocean-canvas"></canvas>
+
+    <div class="container">
+        <img src="{{ url_for('static', filename='tecmi.png') }}" class="logo-tecmilenio" alt="TecMilenio">
+        <h2>SISTEMA BINARIO</h2>
+
+        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+            <button onclick="changeMode('simple')" id="btn-simple" class="mode-btn active">CONVERSOR</button>
+            <button onclick="changeMode('operation')" id="btn-op" class="mode-btn">OPERACIÓN</button>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="calc_mode" id="calc_mode" value="simple">
+            
+            <input type="number" name="n1" placeholder="Ingresa un Valor (Decimal)" required>
+            
+            <div id="op-ui" class="hidden">
+                <input type="number" name="n2" id="input-n2" placeholder="Segundo Valor (Decimal)">
+                <div class="grid-ops">
+                    <button name="op" value="sum" title="Sumar">+</button>
+                    <button name="op" value="sub" title="Restar">-</button>
+                    <button name="op" value="mul" title="Multiplicar">*</button>
+                    <button name="op" value="div" title="Dividir">/</button>
+                </div>
+            </div>
+
+            <button type="submit" id="submit-simple" class="mode-btn" style="width: 90%; padding: 15px; margin-top: 10px;">CONVERTIR A BINARIO</button>
+        </form>
+
+        {% if result %}
+        <div class="result-box">
+            {% if result.type == 'simple' %}
+                <span>▶ VALOR EN BINARIO:</span> <br>
+                <strong style="color:white; font-size: 1.2em;">{{ result.val }}</strong>
+            {% elif result.type == 'op' %}
+                <span>▶ VALOR A (BIN):</span> <span style="color:white;">{{ result.bin1 }}</span><br>
+                <span>▶ VALOR B (BIN):</span> <span style="color:white;">{{ result.bin2 }}</span><br><br>
+                <span>▶ RESULTADO (BIN):</span> <strong style="color:#00ff88;">{{ result.bin_res }}</strong><br>
+                <span>▶ RESULTADO (DEC):</span> <strong style="color:white;">{{ result.dec_res }}</strong>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Lógica para alternar entre Conversor y Operación
+        function changeMode(mode) {
+            document.getElementById('calc_mode').value = mode;
+            const opUI = document.getElementById('op-ui');
+            const subSimple = document.getElementById('submit-simple');
+            const inputN2 = document.getElementById('input-n2');
+            
+            if(mode === 'simple') {
+                opUI.classList.add('hidden');
+                subSimple.classList.remove('hidden');
+                document.getElementById('btn-simple').classList.add('active');
+                document.getElementById('btn-op').classList.remove('active');
+                inputN2.removeAttribute('required'); // No es obligatorio en conversor
+            } else {
+                opUI.classList.remove('hidden');
+                subSimple.classList.add('hidden');
+                document.getElementById('btn-op').classList.add('active');
+                document.getElementById('btn-simple').classList.remove('active');
+                inputN2.setAttribute('required', 'true'); // Sí es obligatorio en operación
+            }
+        }
+
+        // ==========================================
+        // SIMULACIÓN DEL OCÉANO (TORTUGAS + BURBUJAS)
+        // ==========================================
+        const canvas = document.getElementById('ocean-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        let mouse = { x: -1000, y: -1000 };
+        window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mouseout', () => { mouse.x = -1000; mouse.y = -1000; });
+        window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+
+        // 1. CLASE BURBUJAS
+        class Bubble {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = height + Math.random() * 500; // Empiezan abajo de la pantalla
+                this.size = Math.random() * 4 + 1;
+                this.speed = Math.random() * 2 + 0.5;
+                this.wobble = Math.random() * Math.PI * 2; // Para que suban en zig-zag
+            }
+            update() {
+                this.y -= this.speed;
+                this.wobble += 0.05;
+                this.x += Math.sin(this.wobble) * 1;
+
+                if (this.y < -20) { // Si salen por arriba, reinician abajo
+                    this.y = height + 20;
+                    this.x = Math.random() * width;
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+                ctx.fill();
+            }
+        }
+
+        // 2. CLASE TORTUGAS
+        class Turtle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.size = 15 + Math.random() * 10;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(Math.atan2(this.vy, this.vx));
+
+                const colorShell = '#2e8b57';
+                const colorSkin = '#1e5b3c';
+
+                ctx.fillStyle = colorSkin;
+                ctx.beginPath(); ctx.ellipse(this.size*0.4, this.size*0.8, this.size*0.6, this.size*0.3, Math.PI/4, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(this.size*0.4, -this.size*0.8, this.size*0.6, this.size*0.3, -Math.PI/4, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(-this.size*0.5, this.size*0.6, this.size*0.4, this.size*0.2, -Math.PI/6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(-this.size*0.5, -this.size*0.6, this.size*0.4, this.size*0.2, Math.PI/6, 0, Math.PI*2); ctx.fill();
+
+                ctx.beginPath(); ctx.arc(this.size * 0.9, 0, this.size * 0.4, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = colorShell;
+                ctx.beginPath(); ctx.ellipse(0, 0, this.size, this.size * 0.8, 0, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#154029'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.restore();
+            }
+            update() {
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                let repulsion = 150;
+
+                if (distance < repulsion) {
+                    let force = (repulsion - distance) / repulsion;
+                    this.vx -= (dx / distance) * force * 0.8;
+                    this.vy -= (dy / distance) * force * 0.8;
+                }
+
+                let speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+                if (speed > 3) { this.vx = (this.vx / speed) * 3; this.vy = (this.vy / speed) * 3; }
+                else if (speed < 0.5) { this.vx *= 1.05; this.vy *= 1.05; }
+
+                this.vx += (Math.random() - 0.5) * 0.1;
+                this.vy += (Math.random() - 0.5) * 0.1;
+
+                this.x += this.vx; this.y += this.vy;
+
+                if (this.x < -50) this.x = width + 50;
+                if (this.x > width + 50) this.x = -50;
+                if (this.y < -50) this.y = height + 50;
+                if (this.y > height + 50) this.y = -50;
+            }
+        }
+
+        // Crear arrays de elementos
+        const turtles = [];
+        const bubbles = [];
+        for (let i = 0; i < 7; i++) turtles.push(new Turtle());
+        for (let i = 0; i < 40; i++) bubbles.push(new Bubble());
+
+        // Animar todo
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            bubbles.forEach(bubble => { bubble.update(); bubble.draw(); });
+            turtles.forEach(turtle => { turtle.update(); turtle.draw(); });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
